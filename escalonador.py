@@ -1,3 +1,4 @@
+
 #Classe BCP (Bloco de Controle de Processo)
 class BCP:
     def __init__(self, nome_programa, prioridade, codigo_programa):
@@ -44,7 +45,7 @@ class TabelaProcessos:
     def obter_bcp(self, nome_programa):
         return self.processos.get(nome_programa)
     
-    def ler_prioridades(nome_arquivo):
+def ler_prioridades(nome_arquivo):
     prioridades = []
     with open(nome_arquivo, 'r') as f:
         for linha in f:
@@ -73,6 +74,19 @@ class Escalonador:
         self.lista_prontos = []
         self.lista_bloqueados = []
         self.tabela_processos = TabelaProcessos()
+        self.contador_trocas = 0
+        self.contador_instrucoes = 0
+        self.total_processos = 0
+
+    def carregar_processos(self, diretorio_programas, arquivo_prioridades):
+        prioridades = ler_prioridades(arquivo_prioridades)
+        for i, prioridade in enumerate(prioridades):
+            nome_arquivo = f"{diretorio_programas}/{i+1:02d}.txt"
+            nome_processo, codigo_programa = ler_programa(nome_arquivo)
+            bcp = BCP(nome_processo, prioridade, codigo_programa)
+            self.adicionar_processo(bcp)
+            self.total_processos += 1  # Incrementa o número total de processos
+
 
     def adicionar_processo(self, bcp):
         self.tabela_processos.adicionar_processo(bcp)
@@ -81,22 +95,69 @@ class Escalonador:
 
     def executar(self):
         while self.lista_prontos or self.lista_bloqueados:
+            # Verifica se todos os processos têm zero crédito e redistribui
+            if all(bcp.creditos == 0 for bcp in self.lista_prontos):
+                self.redistribuir_creditos()
+
+            if self.lista_bloqueados:
+                self.atualizar_bloqueados()
+
             if self.lista_prontos:
                 bcp = self.lista_prontos.pop(0)
                 self.executar_processo(bcp)
-                self.lista_prontos.sort(key=lambda p: p.prioridade, reverse=True)
-            if len(self.lista_bloqueados) > 0:
-                self.atualizar_bloqueados()
+                self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True)
+        
+        # Quando o escalonador terminar, gerar estatísticas
+        self.gerar_estatisticas()
 
     def executar_processo(self, bcp):
+        self.contador_trocas += 1  # Conta as trocas de processo
+        bcp.creditos -= 1
+        instrucoes_executadas = 0
+
+        registrar_log(f"Executando {bcp.nome_programa}", self.quantum)
+
         for _ in range(self.quantum):
             if bcp.contador_programa >= len(bcp.codigo_programa):
-                print(f"Processo {bcp.nome_programa} terminado.")
+                registrar_log(f"Processo {bcp.nome_programa} terminado. X={bcp.registrador_x}, Y={bcp.registrador_y}", self.quantum)
                 self.tabela_processos.remover_processo(bcp.nome_programa)
-                return
+                return  # O processo terminou, então não há mais nada a fazer
             instrucao = bcp.codigo_programa[bcp.contador_programa]
             self.processar_instrucao(bcp, instrucao)
             bcp.contador_programa += 1
+            instrucoes_executadas += 1
+
+            if bcp.estado == 'Bloqueado':
+                break
+        
+        # Se o processo foi interrompido, ele volta à fila de prontos
+        if bcp.estado == 'Pronto':
+            self.lista_prontos.append(bcp)  # Reinsere na lista de prontos
+
+        self.contador_instrucoes += instrucoes_executadas
+        registrar_log(f"Interrompendo {bcp.nome_programa} após {instrucoes_executadas} instruções", self.quantum)
+
+    
+    def atualizar_bloqueados(self):
+        for bcp in self.lista_bloqueados[:]:
+            bcp.tempo_espera -= 1
+            if bcp.tempo_espera <= 0:
+                bcp.estado = 'Pronto'
+                self.lista_bloqueados.remove(bcp)
+                # Inserindo o processo de volta na fila de prontos, mantendo ordem de chegada
+                self.lista_prontos.append(bcp)
+    
+    def redistribuir_creditos(self):
+        for bcp in self.lista_prontos:
+            bcp.creditos = bcp.prioridade
+        self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True)
+
+    def gerar_estatisticas(self):
+        media_trocas = self.contador_trocas / self.total_processos if self.total_processos > 0 else 0
+        media_instrucoes = self.contador_instrucoes / self.total_processos if self.total_processos > 0 else 0
+        registrar_log(f"MEDIA DE TROCAS: {media_trocas}", self.quantum)
+        registrar_log(f"MEDIA DE INSTRUCOES: {media_instrucoes}", self.quantum)
+        registrar_log(f"QUANTUM: {self.quantum}", self.quantum)
 
     def processar_instrucao(self, bcp, instrucao):
         if instrucao.startswith('X='):
@@ -106,15 +167,20 @@ class Escalonador:
         elif instrucao == 'COM':
             pass  # Simule a execução do comando
         elif instrucao == 'E/S':
+            registrar_log(f"E/S iniciada em {bcp.nome_programa}", self.quantum)
             bcp.estado = 'Bloqueado'
-            bcp.tempo_espera = 2  # Tempo de espera exemplo
+            bcp.tempo_espera = 2
             self.lista_bloqueados.append(bcp)
         elif instrucao == 'SAIDA':
             print(f"Processo {bcp.nome_programa} finalizado.")
-            self.tabela_processos.remover_processo(bcp.nome_programa)
+            self.tabela_processos.remover_processo(bcp.nome_programa)  # Remove da tabela de processos
+            if bcp in self.lista_prontos:
+                self.lista_prontos.remove(bcp)
+            if bcp in self.lista_bloqueados:
+                self.lista_bloqueados.remove(bcp)
 
-            #Log e Estatísticas
-            import datetime
+#Log e Estatísticas            
+import datetime
 
 def registrar_log(mensagem, quantum):
     with open(f"log{quantum:02d}.txt", 'a') as f:
@@ -122,12 +188,11 @@ def registrar_log(mensagem, quantum):
         f.write(f"[{timestamp}] {mensagem}\n")
 
         #testes
-        def testar_escalonador():
-         escalonador = Escalonador()
-         escalonador.carregar_processos('programas', 'prioridades.txt', 'quantum.txt')
-         escalonador.executar()
+def main():
+    quantum = ler_quantum('quantum.txt')
+    escalonador = Escalonador(quantum)
+    escalonador.carregar_processos('programas', 'prioridades.txt')
+    escalonador.executar()
 
-         # Chame a função de teste
-        testar_escalonador()
-
-        
+    # Chame a função de teste
+main()
