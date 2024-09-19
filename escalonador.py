@@ -56,6 +56,7 @@ class Escalonador:
         self.contador_trocas = 0 # variável para contar as trocas feitas
         self.contador_instrucoes = 0 # variável para contar quantas instruções foram realizadas
         self.total_processos = 0 # variável para contar o número de processos carregados
+        self.instrucoes_por_quantum = 0 # variável para contar instruções por quantum
 
     # Método para carregar os processos na tabela de processos
     def carregar_processos(self, diretorio_programas, arquivo_prioridades):
@@ -108,10 +109,12 @@ class Escalonador:
                 registrar_log(f"Processo {bcp.nome_programa} terminado. X={bcp.registrador_x}, Y={bcp.registrador_y}", self.quantum)
                 self.tabela_processos.remover_processo(bcp.nome_programa)
                 return  # O processo terminou, então não há mais nada a fazer
+                
             instrucao = bcp.codigo_programa[bcp.contador_programa]
             self.processar_instrucao(bcp, instrucao)
             bcp.contador_programa += 1
             instrucoes_executadas += 1
+            self.instrucoes_por_quantum += 1
             
             # Verifica se o processo foi bloqueado
             if bcp.estado == 'Bloqueado': 
@@ -142,10 +145,12 @@ class Escalonador:
 
     # Método para gerar estatísticas e registrar os logs finais
     def gerar_estatisticas(self):
+
         media_trocas = self.contador_trocas / self.total_processos if self.total_processos > 0 else 0
-        media_instrucoes = self.contador_instrucoes / self.total_processos if self.total_processos > 0 else 0
+        media_instrucoes_por_quantum = self.instrucoes_por_quantum / self.contador_trocas if self.contador_trocas > 0 else 0
+
         registrar_log(f"MEDIA DE TROCAS: {media_trocas}", self.quantum)
-        registrar_log(f"MEDIA DE INSTRUCOES: {media_instrucoes}", self.quantum)
+        registrar_log(f"MEDIA DE INSTRUCOES POR QUANTUM: {media_instrucoes_por_quantum}", self.quantum)
         registrar_log(f"QUANTUM: {self.quantum}", self.quantum)
 
     # Método para processar as instruções
@@ -201,6 +206,7 @@ def registrar_log(mensagem, quantum):
 
 # Função main para iniciar o programa
 def main():
+
     quantum = ler_quantum('quantum.txt')
     escalonador = Escalonador(quantum)
     escalonador.carregar_processos('programas', 'prioridades.txt')
