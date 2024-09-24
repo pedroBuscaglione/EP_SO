@@ -125,7 +125,7 @@ class Escalonador:
     # Método para processar uma instrução do processo
     def executar_processo(self, bcp):
         self.contador_trocas += 1  # Conta as trocas de processo
-        bcp.creditos -= 1 #COLOCAR DENTRO LOOP DE BAIXO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        bcp.creditos -= 1
         instrucoes_executadas = 0
 
         registrar_log(f"Executando {bcp.nome_programa}", self.quantum)
