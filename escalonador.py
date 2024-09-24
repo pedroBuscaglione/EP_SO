@@ -1,48 +1,70 @@
 
+############################################################
+# Primeiro Exercício Programa - Escalonador de Processos   #
+# Disciplina: Sistemas Operacionais                        #
+# Docente: Prof. Dr. Norton Trevisan Roman                 #
+# Turma: 04                                                #
+# Discentes:                                               #
+#  Mariana Borges Araujo da Silva, NUSP: 14596342          #
+#  Pedro Serrano Buscaglione, NUSP: 14603652               #
+############################################################
+
+#O Exercício Programa proposto tem como objetivo simular um Escalonador de Processos em um SO. Um escalonador tem como principal função
+#Gerenciar a execução de múltiplos processos, tomando a decisão de qual processo, e por quanto tempo, será executado
+#O escalonador tabém lida com bloqueios e trocas entre os processos
+#A linguagem de programação utilizada nesse EP foi Python
+
 #Classe BCP (Bloco de Controle de Processo)
 class BCP:
+    # O método __init__ é o construtor da classe. Ele é chamado automaticamente quando uma nova instância da classe é criada
     def __init__(self, nome_programa, prioridade, codigo_programa):
-        # O método __init__ é o construtor da classe. Ele é chamado automaticamente quando uma nova instância da classe é criada.
-        
+
+    # Inicializa o contador de programa, que indica a posição atual no código do programa. Começa em 0, indicando o início do código 
         self.contador_programa = 0
-        # Inicializa o contador de programa, que indica a posição atual no código do programa. Começa em 0, indicando o início do código.
 
-        self.estado = 'Pronto'  # Estados possíveis: 'Executando', 'Pronto', 'Bloqueado'
+        # Estados possíveis: 'Executando', 'Pronto', 'Bloqueado'
         # Define o estado inicial do processo como 'Pronto'. O estado pode ser 'Executando', 'Pronto', ou 'Bloqueado'.
+        self.estado = 'Pronto'  
 
+        # Define a prioridade do processo. A prioridade influencia a ordem em que os processos são executados
         self.prioridade = prioridade
-        # Define a prioridade do processo. A prioridade influencia a ordem em que os processos são executados.
-
+        
+         # Inicializa o número de créditos do processo com a mesma prioridade
+         # Os créditos são usados para determinar quanto tempo de CPU um processo tem antes de ser interrompido
         self.creditos = prioridade
-        # Inicializa o número de créditos do processo com a mesma prioridade. Créditos são usados para determinar quanto tempo de CPU um processo tem antes de ser interrompido.
-
-        self.registrador_x = 0
+       
         # Inicializa o registrador X do processo com 0. O registrador X é um dos registradores de uso geral no processo.
-
-        self.registrador_y = 0
+        self.registrador_x = 0
+        
         # Inicializa o registrador Y do processo com 0. O registrador Y é outro registrador de uso geral no processo.
-
+        self.registrador_y = 0
+        
+         # Define o código do programa do processo. Isso é uma lista ou outro tipo de estrutura que contém as instruções que o processo deve executar.
         self.codigo_programa = codigo_programa
-        # Define o código do programa do processo. Isso é uma lista ou outro tipo de estrutura que contém as instruções que o processo deve executar.
-
-        self.nome_programa = nome_programa
+       
         # Armazena o nome do programa associado a este processo. O nome é útil para identificação e gerenciamento dos processos.
+        self.nome_programa = nome_programa
 
+        # Inicializa o tempo de espera do processo com 0. Esse tempo é utilizado para processos que estão bloqueados
+        # indicando quanto tempo eles devem esperar antes de serem movidos de volta para a lista de processos prontos
         self.tempo_espera = 0  # Usado para processos bloqueados
-        # Inicializa o tempo de espera do processo com 0. Esse tempo é utilizado para processos que estão bloqueados, indicando quanto tempo eles devem esperar antes de serem movidos de volta para a lista de processos prontos.
+        
 
 #Classe que representa a Tabela de Processos
 class TabelaProcessos:
     def __init__(self):
         self.processos = {} #Dicionário para armazenar BCPs com base no nome do processo 
-
+    
+    #Método que adiciona um processo na tabela
     def adicionar_processo(self, bcp):
-        self.processos[bcp.nome_programa] = bcp
-
+        self.processos[bcp.nome_programa] = bcp 
+    
+    #Método que remove um processo na tabela
     def remover_processo(self, nome_programa):
         if nome_programa in self.processos:
             del self.processos[nome_programa]
 
+    #Método que obtém o BCP de um processo pelo nome
     def obter_bcp(self, nome_programa):
         return self.processos.get(nome_programa)
    
@@ -52,7 +74,7 @@ class Escalonador:
         self.quantum = quantum  # quantum do escalonador
         self.lista_prontos = [] # lista de prontos
         self.lista_bloqueados = [] # lista de bloqueados
-        self.tabela_processos = TabelaProcessos() # tabala de processos
+        self.tabela_processos = TabelaProcessos() # tabela de processos
         self.contador_trocas = 0 # variável para contar as trocas feitas
         self.contador_instrucoes = 0 # variável para contar quantas instruções foram realizadas
         self.total_processos = 0 # variável para contar o número de processos carregados
@@ -60,10 +82,13 @@ class Escalonador:
 
     # Método para carregar os processos na tabela de processos
     def carregar_processos(self, diretorio_programas, arquivo_prioridades):
+        #Carrega as prioridades dos processos de um arquivo
         prioridades = ler_prioridades(arquivo_prioridades)
+        #Para cada processo, carrega o código do programa
         for i, prioridade in enumerate(prioridades):
             nome_arquivo = f"{diretorio_programas}/{i+1:02d}.txt"
             nome_processo, codigo_programa = ler_programa(nome_arquivo)
+            #Cria um novo BCP e adiciona o processo na tabela e na lista de prontos
             bcp = BCP(nome_processo, prioridade, codigo_programa)
             self.adicionar_processo(bcp)
             self.total_processos += 1  # Incrementa o número total de processos
@@ -75,6 +100,7 @@ class Escalonador:
     def adicionar_processo(self, bcp):
         self.tabela_processos.adicionar_processo(bcp)
         self.lista_prontos.append(bcp)
+        self.lista_prontos.sort(key=lambda p: p.prioridade, reverse=True)  # Ordenar por prioridade
 
     # Método para executar enquanto existirem processos que não foram completados
     def executar(self):
@@ -91,7 +117,7 @@ class Escalonador:
             if self.lista_prontos:
                 bcp = self.lista_prontos.pop(0)
                 self.executar_processo(bcp)
-                self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True)
+                self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True) #Reordena os processos prontos pela quantidade de créditos
         
         # Quando o escalonador terminar, gerar estatísticas
         self.gerar_estatisticas()
@@ -99,7 +125,7 @@ class Escalonador:
     # Método para processar uma instrução do processo
     def executar_processo(self, bcp):
         self.contador_trocas += 1  # Conta as trocas de processo
-        bcp.creditos -= 1
+        bcp.creditos -= 1 #COLOCAR DENTRO LOOP DE BAIXO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         instrucoes_executadas = 0
 
         registrar_log(f"Executando {bcp.nome_programa}", self.quantum)
@@ -111,7 +137,8 @@ class Escalonador:
                 registrar_log(f"Processo {bcp.nome_programa} terminado. X={bcp.registrador_x}, Y={bcp.registrador_y}", self.quantum)
                 self.tabela_processos.remover_processo(bcp.nome_programa)
                 return  # O processo terminou, então não há mais nada a fazer
-                
+
+            #Processa a instrução atual do processo 
             instrucao = bcp.codigo_programa[bcp.contador_programa]
             self.processar_instrucao(bcp, instrucao)
             bcp.contador_programa += 1
@@ -143,14 +170,16 @@ class Escalonador:
     def redistribuir_creditos(self):
         for bcp in self.lista_prontos:
             bcp.creditos = bcp.prioridade
-        self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True)
+        self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True)#reordena os processos pontos pela quantidade de créditos
 
     # Método para gerar estatísticas e registrar os logs finais
     def gerar_estatisticas(self):
-
+        
+        #Calcula a média de trocas e de instruções por quantum
         media_trocas = self.contador_trocas / self.total_processos if self.total_processos > 0 else 0
         media_instrucoes_por_quantum = self.instrucoes_por_quantum / self.contador_trocas if self.contador_trocas > 0 else 0
 
+        #Registra os logs e estaísticas
         registrar_log(f"MEDIA DE TROCAS: {media_trocas}", self.quantum)
         registrar_log(f"MEDIA DE INSTRUCOES POR QUANTUM: {media_instrucoes_por_quantum}", self.quantum)
         registrar_log(f"QUANTUM: {self.quantum}", self.quantum)
@@ -176,18 +205,18 @@ class Escalonador:
                 self.lista_bloqueados.remove(bcp)
 
 # 3 métodos para ler os arquivos necessários
-def ler_prioridades(nome_arquivo):
+def ler_prioridades(nome_arquivo): #carrega as prioridades dos processos (definindo a ordem de execução)
     prioridades = []
     with open(nome_arquivo, 'r') as f:
         for linha in f:
             prioridades.append(int(linha.strip()))
     return prioridades
 
-def ler_quantum(nome_arquivo):
+def ler_quantum(nome_arquivo): #define o tempo máximo que cada processo tem para ser executado, antes de ser interrompido
     with open(nome_arquivo, 'r') as f:
         return int(f.read().strip())
 
-def ler_programa(nome_arquivo):
+def ler_programa(nome_arquivo): #carrega o código de cada processo para que o escalonador possa executar
     nome_processo = None
     codigo = []
     with open(nome_arquivo, 'r') as f:
@@ -217,3 +246,4 @@ def main():
 
 # Chame a função main
 main()
+
