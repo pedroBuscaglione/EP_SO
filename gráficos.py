@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # Função para extrair as médias de trocas e instruções de um arquivo log
 def extrair_dados_log(quantum):
-    nome_arquivo = f"log{quantum:02d}.txt"
+    nome_arquivo = f"logs/log{quantum:02d}.txt"
     media_trocas = None
     media_instrucoes = None
 

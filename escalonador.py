@@ -67,12 +67,14 @@ class Escalonador:
             bcp = BCP(nome_processo, prioridade, codigo_programa)
             self.adicionar_processo(bcp)
             self.total_processos += 1  # Incrementa o número total de processos
+        self.lista_prontos.sort(key=lambda p: p.prioridade, reverse=True)  # Ordenar por prioridade
+        for i in self.lista_prontos:
+            registrar_log(f"Carregando {i.nome_programa}", self.quantum)
 
     # Método para adicionar processos na tabela e na lista de prontos, ordenando eles pela prioridade
     def adicionar_processo(self, bcp):
         self.tabela_processos.adicionar_processo(bcp)
         self.lista_prontos.append(bcp)
-        self.lista_prontos.sort(key=lambda p: p.prioridade, reverse=True)  # Ordenar por prioridade
 
     # Método para executar enquanto existirem processos que não foram completados
     def executar(self):
@@ -207,10 +209,11 @@ def registrar_log(mensagem, quantum):
 # Função main para iniciar o programa
 def main():
 
-    quantum = ler_quantum('quantum.txt')
-    escalonador = Escalonador(quantum)
-    escalonador.carregar_processos('programas', 'prioridades.txt')
-    escalonador.executar()
+    for i in range(1, 22):
+    #quantum = ler_quantum('quantum.txt')
+        escalonador = Escalonador(i)
+        escalonador.carregar_processos('programas', 'prioridades.txt')
+        escalonador.executar()
 
 # Chame a função main
 main()
