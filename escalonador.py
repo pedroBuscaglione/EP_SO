@@ -1,4 +1,3 @@
-
 ############################################################
 # Primeiro Exercício Programa - Escalonador de Processos   #
 # Disciplina: Sistemas Operacionais                        #
@@ -19,7 +18,7 @@ class BCP:
     # O método __init__ é o construtor da classe. Ele é chamado automaticamente quando uma nova instância da classe é criada
     def __init__(self, nome_programa, prioridade, codigo_programa):
 
-    # Inicializa o contador de programa, que indica a posição atual no código do programa. Começa em 0, indicando o início do código 
+        # Inicializa o contador de programa, que indica a posição atual no código do programa. Começa em 0, indicando o início do código 
         self.contador_programa = 0
 
         # Estados possíveis: 'Executando', 'Pronto', 'Bloqueado'
@@ -29,8 +28,8 @@ class BCP:
         # Define a prioridade do processo. A prioridade influencia a ordem em que os processos são executados
         self.prioridade = prioridade
         
-         # Inicializa o número de créditos do processo com a mesma prioridade
-         # Os créditos são usados para determinar quanto tempo de CPU um processo tem antes de ser interrompido
+        # Inicializa o número de créditos do processo com a mesma prioridade
+        # Os créditos são usados para determinar quanto tempo de CPU um processo tem antes de ser interrompido
         self.creditos = prioridade
        
         # Inicializa o registrador X do processo com 0. O registrador X é um dos registradores de uso geral no processo.
@@ -45,11 +44,11 @@ class BCP:
         # Armazena o nome do programa associado a este processo. O nome é útil para identificação e gerenciamento dos processos.
         self.nome_programa = nome_programa
 
-        # Inicializa o tempo de espera do processo com 0. Esse tempo é utilizado para processos que estão bloqueados
-        # indicando quanto tempo eles devem esperar antes de serem movidos de volta para a lista de processos prontos
+        # Inicializa o tempo de espera do processo com 0. Esse tempo representa quantos ciclos o processo deve esperar enquanto está bloqueado
+        # O tempo será ajustado quando o processo realizar uma operação de E/S (quando o processo executa uma opração de E/S, ele entra em estado de Bloqueado
+        # e é atribuido um valor a tempo_espera, indicando quanto tempo ele ficará Bloqueado)
         self.tempo_espera = 0  # Usado para processos bloqueados
         
-
 #Classe que representa a Tabela de Processos
 class TabelaProcessos:
     def __init__(self):
@@ -105,7 +104,10 @@ class Escalonador:
     # Método para executar enquanto existirem processos que não foram completados
     def executar(self):
         while self.lista_prontos or self.lista_bloqueados:
-            # Verifica se todos os processos têm zero crédito e redistribui se não tiverem
+            # Verifica se todos os processos prontos têm zero crédito e redistribui se não tiverem.
+            # Os créditos zeram quando cada processo esgota seus respectivos créditos. Sendo assim, há uma redistribuição dos créditos para 
+            # reiniciar o ciclo de execução, Essa redistribuição de créditos garante que os processos voltem a competir de acordo com suas 
+            # prioridades iniciais e o escalonamento continue de forma justa evitando que os processos de baixa prioridade sofram com falta de créditos.
             if all(bcp.creditos == 0 for bcp in self.lista_prontos):
                 self.redistribuir_creditos()
 
@@ -136,6 +138,9 @@ class Escalonador:
             if bcp.contador_programa >= len(bcp.codigo_programa):
                 registrar_log(f"Processo {bcp.nome_programa} terminado. X={bcp.registrador_x}, Y={bcp.registrador_y}", self.quantum)
                 self.tabela_processos.remover_processo(bcp.nome_programa)
+                #verifica se o processo ainda está na lista de prontos e o remove!!!!!!!!!!!!!!!!!!!!!!
+                if bcp in self.lista_prontos:
+                    self.lista_prontos.remove(bcp)
                 return  # O processo terminou, então não há mais nada a fazer
 
             #Processa a instrução atual do processo 
@@ -154,15 +159,21 @@ class Escalonador:
             self.lista_prontos.append(bcp)  # Reinsere na lista de prontos
 
         self.contador_instrucoes += instrucoes_executadas
-        registrar_log(f"Interrompendo {bcp.nome_programa} após {instrucoes_executadas} instruções", self.quantum)
+        #registra o log no momento da interrupção da linha e os registradores X e Y!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        registrar_log(f"Interrompendo {bcp.nome_programa} após {instrucoes_executadas} instruções. X={bcp.registrador_x}, Y={bcp.registrador_y}", self.quantum) 
 
     # Método para atualizar a lista de bloqueados
     def atualizar_bloqueados(self):
-        for bcp in self.lista_bloqueados[:]:
+        # Itera sobre a lista de bloqueados de trás para frente, a fim de evitar problemas ao se alterar o
+        # tamanho da lista conforme ela é percorrida !!!!!!!!!!!!!!!!!!!!!!!!!!
+        for i in range(len(self.lista_bloqueados) -1, -1, -1):
+            bcp = self.lista_bloqueados[i]
             bcp.tempo_espera -= 1
+            # verifica se o tempo de espera é terminado
             if bcp.tempo_espera <= 0:
                 bcp.estado = 'Pronto'
-                self.lista_bloqueados.remove(bcp)
+                # remove da lista de bloqueados e adiciona na lista de prontos
+                self.lista_bloqueados.pop(i)
                 # Inserindo o processo de volta na fila de prontos, mantendo ordem de chegada
                 self.lista_prontos.append(bcp)
     
@@ -170,7 +181,7 @@ class Escalonador:
     def redistribuir_creditos(self):
         for bcp in self.lista_prontos:
             bcp.creditos = bcp.prioridade
-        self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True)#reordena os processos pontos pela quantidade de créditos
+        self.lista_prontos.sort(key=lambda p: p.creditos, reverse=True) #reordena os processos pontos pela quantidade de créditos
 
     # Método para gerar estatísticas e registrar os logs finais
     def gerar_estatisticas(self):
@@ -219,11 +230,22 @@ def ler_quantum(nome_arquivo): #define o tempo máximo que cada processo tem par
 def ler_programa(nome_arquivo): #carrega o código de cada processo para que o escalonador possa executar
     nome_processo = None
     codigo = []
-    with open(nome_arquivo, 'r') as f:
-        linhas = f.readlines()
-        nome_processo = linhas[0].strip()
-        for linha in linhas[1:]:
-            codigo.append(linha.strip())
+    try: #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        with open(nome_arquivo, 'r') as f:
+            linhas = f.readlines()
+            nome_processo = linhas[0].strip()
+            for linha in linhas[1:]:
+                codigo.append(linha.strip())
+    #verificações de possíveis erros relacionados aos arquivos
+    except FileNotFoundError:
+        # mensagem exibida caso o arquivo não seja encontrado !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        print(f"O arquivo {nome_arquivo} não foi encontrado.")   
+    except IOError:
+        # mensagem exibida caso haja porblemas de leitura ou escrita no arquivo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        print(f"Não foi possível ler o arquivo {nome_arquivo}.")
+    except IndexError:
+        # mensagem exibida caso o arquivo não tenha as linhas esperadas !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        print(f"O arquivo {nome_arquivo} não possui o formato esperado.")
     return nome_processo, codigo
 
 #Log e Estatísticas            
@@ -238,11 +260,11 @@ def registrar_log(mensagem, quantum):
 # Função main para iniciar o programa
 def main():
 
-    for i in range(1, 22):
-    #quantum = ler_quantum('quantum.txt')
-        escalonador = Escalonador(i)
-        escalonador.carregar_processos('programas', 'prioridades.txt')
-        escalonador.executar()
+    #for i in range(1, 22):
+    quantum = ler_quantum('quantum.txt')
+    escalonador = Escalonador(quantum) 
+    escalonador.carregar_processos('programas', 'prioridades.txt')
+    escalonador.executar()
 
 # Chame a função main
 main()
