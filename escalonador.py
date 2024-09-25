@@ -159,7 +159,7 @@ class Escalonador:
             self.lista_prontos.append(bcp)  # Reinsere na lista de prontos
 
         self.contador_instrucoes += instrucoes_executadas
-        #registra o log no momento da interrupção da linha e os registradores X e Y!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        #registra o log no momento da interrupção da linha e inclui os valores dos registradores X e Y!!!!!!!!!!!!!!!!!!!!!!!!!!!
         registrar_log(f"Interrompendo {bcp.nome_programa} após {instrucoes_executadas} instruções. X={bcp.registrador_x}, Y={bcp.registrador_y}", self.quantum) 
 
     # Método para atualizar a lista de bloqueados
